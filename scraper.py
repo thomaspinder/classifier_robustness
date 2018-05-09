@@ -7,9 +7,9 @@ import pickle
 
 
 class Lyrics:
-    def __init__(self, artist_name, verbose=False, max_requests=20):
+    def __init__(self, artist_name, url, verbose=False, max_requests=20):
         self.meta_name = artist_name
-        self.url = 'https://www.azlyrics.com/q/{}.html'.format(artist_name.lower())
+        self.url = url
         self.links = None
         self.lyrics = {}
         self.headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:30.0) " +
@@ -18,8 +18,9 @@ class Lyrics:
                         "Accept-Language": "en-US,en;q=0.5",
                         "Accept-Encoding": "gzip, deflate",
                         "Connection": "keep-alive"}
+        self.proxies = [{"http": "http://149.202.106.159:3128"}, {"http": "http://217.155.44.128:3128"},
+                        {'http':'http://187.16.255.98:80'}, {'http':'http://188.166.181.193:8080'}]
         self.verbosity = verbose
-        self.base_url = 'https://www.azlyrics.com'
         self.session = None
         self.max_requests = max_requests
         self.setup_session()
@@ -30,7 +31,6 @@ class Lyrics:
         s.mount('https://', a)
         s.mount('http://', a)
         self.session = s
-        print(s)
         if self.verbosity:
             print('Session Successfully Initialised')
 
@@ -57,8 +57,9 @@ class Lyrics:
         :param url: Artists url
         :return: List of urls containing lyrics
         """
+
         title_html = self.session.get(url, headers=self.headers).content
-        soup = BeautifulSoup(title_html, 'html.parser', parse_only=SoupStrainer('div', {'id': 'listAlbum'}))
+        soup = BeautifulSoup(title_html, 'html.parser', parse_only=SoupStrainer('table', {'id': 'thelist'}))
         self.links = [a for a in soup.find_all('a', href=True)]
 
     def print_results(self):
@@ -68,27 +69,29 @@ class Lyrics:
         print('{} Tracks Found'.format(len(self.links)))
 
     def _get_tracks(self):
+        # TODO: Update album checker to just grab the link through XPATH.
         """
-        From the stored list of lyric urls, the track's respective lyrics are now scraped. This is made slightly harder
-        due to the lack of css on azlyric's page, fortunately the lyric data can be identified through xpath notation
-        though. AzLyrics block an IP for making too many requests in a short space of time, so a pause of a randomly
-        generated length is made in between requests to prevent IP detection.
-        :return:
+        From the stored list of lyric urls, the track's respective lyrics are now scraped. Album titles have a very
+        similar HTML structure to the songs themselves so a simple checker is put in place to skip items whereby the
+        title startswith album as this is only True for albums.
+        :return: Pickled dictionary of song titles and respective lyrics
         """
         for link in self.links:
-            try:
-                content = self.session.get(self.base_url+link['href'].replace('..', ''), headers=self.headers).content
-                tree = html.fromstring(content)
-                title = tree.xpath('/html/body/div[3]/div/div[2]/b/text()')[0]
-                lyrics = ' '.join(tree.xpath('/html/body/div[3]/div/div[2]/div[5]/text()'))
+            content = self.session.get('http://www.mldb.org/'+link['href'], headers=self.headers).content
+            lyric_soup = BeautifulSoup(content, 'html.parser')
+            title = lyric_soup.find('h1').text
+            if not title.startswith('Album'):
+                print('Album: {}'.format(link.text))
+            else:
+                lyrics = lyric_soup.find('p', {'class':'songtext'}).text
                 self.lyrics[title] = lyrics
-                random_pause = round(np.random.uniform(0, 10, 1), 0)
+                random_pause = np.round(np.random.uniform(0, 10, 1), 0)
                 if self.verbosity and (len(self.lyrics.items())*100) % len(self.links) == 0:
                     print('{}% Complete'.format(round(len(self.lyrics.items())*100/len(self.links))))
                 time.sleep(random_pause)
-            except:
-                print('No server response.')
-                break
+
+            # except:
+            #     print('Problem Scraping {}'.format(link))
 
     def pickle_results(self):
         """
@@ -100,6 +103,6 @@ class Lyrics:
 
 
 if __name__ == '__main__':
-    scraper = Lyrics('Queen', verbose=True)
+    scraper = Lyrics('Queen', 'http://www.mldb.org/artist-1498-queen.html', verbose=True)
     scraper.scrape()
     scraper.print_results()
