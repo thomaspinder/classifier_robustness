@@ -80,7 +80,7 @@ class Lyrics:
             content = self.session.get('http://www.mldb.org/'+link['href'], headers=self.headers).content
             lyric_soup = BeautifulSoup(content, 'html.parser')
             title = lyric_soup.find('h1').text
-            if not title.startswith('Album'):
+            if title.startswith('Album'):
                 print('Album: {}'.format(link.text))
             else:
                 lyrics = lyric_soup.find('p', {'class':'songtext'}).text
@@ -103,6 +103,6 @@ class Lyrics:
 
 
 if __name__ == '__main__':
-    scraper = Lyrics('Queen', 'http://www.mldb.org/artist-1498-queen.html', verbose=True)
+    scraper = Lyrics('Eminem', 'http://www.mldb.org/artist-102-eminem.html', verbose=True)
     scraper.scrape()
     scraper.print_results()
