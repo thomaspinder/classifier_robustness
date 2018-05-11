@@ -1,11 +1,17 @@
-import modeller as md
+import preprocess as pr
 import datasets as dt
+import classifiers as clf
 
 
 if __name__=='__main__':
+    # Load in data objects
     eminem = dt.Dataset('data/Eminem_lyrics.pickle', 'Eminem')
-    oned = dt.Dataset('data/OneDirection_lyrics.pickle', 'OneDirection')
+    queen = dt.Dataset('data/Queen_lyrics.pickle', 'Queen')
 
-    analysis = md.Analyser(eminem, oned)
+    # Preprocess
+    analysis = pr.Analyser(eminem, queen)
     analysis.train_test()
     analysis.get_tfidf()
+
+    # Fit Random Forest
+    clf.random_forest(analysis, max_trees=500)
