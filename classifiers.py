@@ -6,7 +6,6 @@ import numpy as np
 import scikitplot as skplt
 from keras.models import Model
 from keras.layers import LSTM, Activation, Dense, Dropout, Input, Embedding
-from keras.optimizers import RMSprop
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils import to_categorical
@@ -16,11 +15,12 @@ from keras.callbacks import EarlyStopping
 def random_forest(data_obj, max_trees = 400, increment = 10, plot=True, k=10):
     means = []
     sds = []
+    labels = np.array([0 if item == 'Eminem' else 1 for item in data_obj.labels.tolist()])
     for i in range(10, max_trees, increment):
         if i%100==0:
             print('Fitting {}th tree.'.format(i))
         rf_clf = RandomForestClassifier(n_jobs=-1, n_estimators=1)
-        scores = cross_val_score(rf_clf, data_obj.all_vecs, data_obj.labels, cv=k)
+        scores = cross_val_score(rf_clf, data_obj.all_vecs, labels, cv=k)
         means.append(np.mean(scores))
         sds.append(np.std(scores) / np.sqrt(len(data_obj.labels)))
     if plot:
@@ -49,7 +49,7 @@ class LSTM_model:
         y_enc = enc.fit_transform(self.y)
         return y_enc.reshape(-1, 1)
 
-    def tokenise(self, input_text, lower=True, matrix_dim = 200):
+    def tokenise(self, input_text, lower=True):
         """
         :param top_n: The top n most popular words to keen.
         :return:
@@ -77,9 +77,9 @@ class LSTM_model:
 
     def fit(self):
         self._define_model()
-        self.model.compile(loss='binary_crossentropy', optimizer=RMSprop(),metrics=['accuracy'])
+        self.model.compile(loss='binary_crossentropy', optimizer='adam',metrics=['accuracy'])
         X_in = self.tokenise(self.X_tr)
-        self.model.fit(X_in, self.y_tr, batch_size=16, epochs=10,
+        self.model.fit(X_in, self.y_tr, batch_size=16, epochs=100,
                   validation_split=0.2, callbacks=[EarlyStopping(monitor='val_loss', min_delta=0.0001)])
 
     def test(self):

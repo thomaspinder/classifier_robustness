@@ -13,10 +13,14 @@ if __name__=='__main__':
     analysis.train_test()
     analysis.get_tfidf()
 
-    # Preprocess LSTM
-    lstm_clf = clf.LSTM_model(analysis, 750, 200)
-    lstm_clf.fit()
-
+    # Get Word2Vec Vectors
+    analysis.add_noise()
 
     # Fit Random Forest
-    # clf.random_forest(analysis, max_trees=5)
+    # clf.random_forest(analysis, max_trees=50, increment=2)
+
+    # Preprocess LSTM
+    # lstm_clf = clf.LSTM_model(analysis, 750, 200)
+    # lstm_clf.fit()
+
+

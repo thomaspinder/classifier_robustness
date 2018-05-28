@@ -1,10 +1,15 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
-from scipy.sparse import vstack
+from utils.key_distances import euclideanKeyboardDistance
+import numpy as np
 import sys
+import random
+import string
 import logging
+import multiprocessing
+import gensim.models.word2vec as w2v
+from copy import deepcopy
+from gensim.models import KeyedVectors
 logging.basicConfig(filename='modelling.log', level=logging.INFO,
                     format= '[%(asctime)s] %(levelname)s - %(message)s',
                     filemode='w')
@@ -23,6 +28,7 @@ class Analyser:
         self.features = None
         self.labels = None
         self.seqs_matrix = None
+        self.letters = list(string.ascii_letters)
 
     def _create(self):
         """
@@ -34,6 +40,7 @@ class Analyser:
         self.all_data = self.data1.data_df.append(self.data2.data_df).reset_index()
         self.all_data.columns = ['track', 'lyrics', 'label']
         self.all_data = self.all_data.drop_duplicates(subset='track')
+        self.backup = deepcopy(self.all_data)
         logging.info('Full Dataset Shape: {}'.format(self.all_data.shape))
 
     def train_test(self, split=(0.7, 0.3)):
@@ -85,14 +92,77 @@ class Analyser:
         word_vecs = TfidfVectorizer(sublinear_tf=True, strip_accents='unicode', analyzer='word', ngram_range=(1,1),
                                     stop_words='english')
         text = self.text_extract(self.all_data.lyrics)
-        word_vecs.fit(text)
-        X_tr_text = self.text_extract(self.X_tr.lyrics)
-        X_te_text = self.text_extract(self.X_te.lyrics)
-        train_vecs = word_vecs.transform(X_tr_text)
-        test_vecs = word_vecs.transform(X_te_text)
-        all_vecs = vstack([train_vecs, test_vecs])
-        return train_vecs, test_vecs, all_vecs
+        all_vecs = word_vecs.fit_transform(text)
+        # X_tr_text = self.text_extract(self.X_tr.lyrics)
+        # X_te_text = self.text_extract(self.X_te.lyrics)
+        # train_vecs = word_vecs.transform(X_tr_text)
+        # test_vecs = word_vecs.transform(X_te_text)
+        # old = vstack([train_vecs, test_vecs])
+        return all_vecs # train_vecs, test_vecs, all_vecs
 
     def get_tfidf(self):
-        self.train_vecs, self.y_vecs, self.all_vecs = self.tfidf_vec()
+        self.all_vecs = self.tfidf_vec()
 
+    def add_noise(self, amount = 0.8):
+        clean = self.all_data.lyrics.tolist()
+        print(clean[0])
+        noisy = [self._generate_noise(lyric, amount) for lyric in clean]
+        print(noisy[0])
+
+    def _generate_noise(self, string, amount):
+        noise_amount = np.ceil(amount*len(string)).astype(int)
+        candidates = np.random.choice(len(string), noise_amount)
+        for i in candidates:
+            if len(string[i]) < 2:
+                pass
+            else:
+                string[i] = np.random.choice([self._remove, self._replace, self._add_character])(string[i])
+        return string
+
+    def _replace(self, string):
+        index = np.random.randint(0, len(string))
+        old = string[index]
+        character = np.random.choice(self.letters)
+        distance = euclideanKeyboardDistance(old, character)
+        while distance < 1.2:
+            character = np.random.choice(self.letters)
+            distance = euclideanKeyboardDistance(old, character)
+        string = string[:index] + character + string[index+1:]
+        return string
+
+    def _add_character(self, string):
+        index = np.random.randint(0, len(string))
+        character = np.random.choice(self.letters)
+        return string[:index] + character + string[index:]
+
+    @staticmethod
+    def _remove(string):
+        index = np.random.randint(0, len(string))
+        return string[:index] + string[index+1:]
+
+    def reset_data(self):
+        self.all_data = self.backup
+
+    def _w2v_vec(self, text, epochs = 800, save=True):
+        w2v_model = w2v.Word2Vec(
+            sg = 0,
+            seed = 123,
+            workers=multiprocessing.cpu_count(),
+            min_count=3,
+            window=10,
+            hs=0,
+            sample=1e-3
+        )
+        w2v_model.build_vocab(text)
+        print('Word2Vec Vocabulary Size: {}'.format(len(w2v_model.wv.vocab)))
+        w2v_model.train(text, epochs=epochs, total_examples=len(text))
+        w2v_vectors = w2v_model.wv
+        if save:
+            w2v_vectors.save('data/w2v_vectors.txt')
+
+    def load_vectors(self, vector_dir='/data/w2v_vectors.txt'):
+        w2v_vectors = KeyedVectors.load_word2vec_format(vector_dir, binary=False)
+        self.w_vecs = w2v_vectors
+
+    def get_w2v(self):
+        self.w_vecs = self._w2v_vec(self.all_data.lyrics)
