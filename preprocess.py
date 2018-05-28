@@ -1,5 +1,7 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
 from scipy.sparse import vstack
 import sys
 import logging
@@ -20,6 +22,7 @@ class Analyser:
         self.y_te = None
         self.features = None
         self.labels = None
+        self.seqs_matrix = None
 
     def _create(self):
         """
@@ -92,3 +95,4 @@ class Analyser:
 
     def get_tfidf(self):
         self.train_vecs, self.y_vecs, self.all_vecs = self.tfidf_vec()
+
