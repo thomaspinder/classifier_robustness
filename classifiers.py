@@ -9,7 +9,7 @@ from keras.layers import LSTM, Activation, Dense, Dropout, Input, Embedding
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils import to_categorical
-from keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping, TensorBoard
 
 
 def random_forest(data_obj, max_trees = 400, increment = 10, plot=True, k=10):
@@ -29,6 +29,7 @@ def random_forest(data_obj, max_trees = 400, increment = 10, plot=True, k=10):
         plt.ylabel('Accuracy')
         plt.xlabel('Number of Trees')
         plt.savefig('plots/{}_{}_rf.png'.format(data_obj.data1.name, data_obj.data2.name))
+
 
 class LSTM_model:
     def __init__(self, data_obj, word_count, max_word):
@@ -79,10 +80,15 @@ class LSTM_model:
         self._define_model()
         self.model.compile(loss='binary_crossentropy', optimizer='adam',metrics=['accuracy'])
         X_in = self.tokenise(self.X_tr)
+        early_stopping = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=5)
+        tboard = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
         self.model.fit(X_in, self.y_tr, batch_size=16, epochs=100,
-                  validation_split=0.2, callbacks=[EarlyStopping(monitor='val_loss', min_delta=0.0001)])
+                  validation_split=0.2, callbacks=[early_stopping, tboard])
 
     def test(self):
         X_in = self.tokenise(self.X_te)
         history = self.model.evaluate(X_in, self.y_te)
         print('Test set\n  Loss: {:0.3f}\n  Accuracy: {:0.3f}'.format(history[0], history[1]))
+
+    def get_embeddings(self):
+        pass

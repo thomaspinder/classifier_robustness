@@ -1,5 +1,6 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
+from sklearn.manifold import TSNE
 from utils.key_distances import euclideanKeyboardDistance
 import numpy as np
 import sys
@@ -40,6 +41,7 @@ class Analyser:
         self.all_data = self.data1.data_df.append(self.data2.data_df).reset_index()
         self.all_data.columns = ['track', 'lyrics', 'label']
         self.all_data = self.all_data.drop_duplicates(subset='track')
+        self.all_data = self.all_data[self.all_data.lyrics.apply(len) > 100]
         self.backup = deepcopy(self.all_data)
         logging.info('Full Dataset Shape: {}'.format(self.all_data.shape))
 
@@ -105,9 +107,8 @@ class Analyser:
 
     def add_noise(self, amount = 0.8):
         clean = self.all_data.lyrics.tolist()
-        print(clean[0])
         noisy = [self._generate_noise(lyric, amount) for lyric in clean]
-        print(noisy[0])
+        self.all_data.lyrics
 
     def _generate_noise(self, string, amount):
         noise_amount = np.ceil(amount*len(string)).astype(int)
@@ -159,10 +160,27 @@ class Analyser:
         w2v_vectors = w2v_model.wv
         if save:
             w2v_vectors.save('data/w2v_vectors.txt')
+        self.w2v_vecs = w2v_model.wv.syn0
 
     def load_vectors(self, vector_dir='/data/w2v_vectors.txt'):
         w2v_vectors = KeyedVectors.load_word2vec_format(vector_dir, binary=False)
         self.w_vecs = w2v_vectors
 
+    def plot_w2v(self):
+        tsne = TSNE(n_components=2, random_state=0)
+        all_word_vectors_matrix_2d = tsne.fit_transform(self.w2v_vecs)
+
     def get_w2v(self):
         self.w_vecs = self._w2v_vec(self.all_data.lyrics)
+
+    def get_summaries(self):
+        lengths = self.all_data.lyrics.apply(len)
+        print('Track Statistics:\nMax Length: {}\nShortest Length: {}\nMean Length: {}'.format(max(lengths),
+                                                                                                min(lengths),
+                                                                                                np.mean(lengths)))
+        print('')
+        print('Longest Track: {}'.format(self.all_data.track[np.argmax(lengths)].replace(' lyrics', '')))
+        print('Shortest Track: {}'.format(self.all_data.track[np.argmin(lengths)].replace(' lyrics', '')))
+        print('-'*80)
+        artists = self.all_data.label.value_counts()
+        print(artists)

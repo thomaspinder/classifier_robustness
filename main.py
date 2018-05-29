@@ -1,6 +1,6 @@
 import preprocess as pr
 import datasets as dt
-import classifiers as clf
+# import classifiers as clf
 
 
 if __name__=='__main__':
@@ -10,11 +10,13 @@ if __name__=='__main__':
 
     # Preprocess
     analysis = pr.Analyser(eminem, queen)
-    analysis.train_test()
-    analysis.get_tfidf()
+    analysis.get_summaries()
+    # analysis.train_test()
+    # analysis.add_noise()
+    # analysis.get_tfidf()
 
     # Get Word2Vec Vectors
-    analysis.add_noise()
+
 
     # Fit Random Forest
     # clf.random_forest(analysis, max_trees=50, increment=2)
@@ -22,5 +24,5 @@ if __name__=='__main__':
     # Preprocess LSTM
     # lstm_clf = clf.LSTM_model(analysis, 750, 200)
     # lstm_clf.fit()
-
+    #
 
