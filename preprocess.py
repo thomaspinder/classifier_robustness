@@ -28,6 +28,7 @@ class Analyser:
         self.y_te = None
         self.features = None
         self.labels = None
+        self.b_labels = None
         self.seqs_matrix = None
         self.letters = list(string.ascii_letters)
 
@@ -57,6 +58,7 @@ class Analyser:
                                                                       random_state=123)
         self.features = X
         self.labels = y
+        self.b_labels = np.array([0 if item == 'Eminem' else 1 for item in y])
         logging.info('Train Size: {}'.format(self.X_tr.shape))
         logging.info('Test Size: {}'.format(self.y_tr.shape))
 
@@ -92,7 +94,7 @@ class Analyser:
         """
         self.split_check()
         word_vecs = TfidfVectorizer(sublinear_tf=True, strip_accents='unicode', analyzer='word', ngram_range=(1,1),
-                                    stop_words='english')
+                                    stop_words='english', max_features=200)
         text = self.text_extract(self.all_data.lyrics)
         all_vecs = word_vecs.fit_transform(text)
         # X_tr_text = self.text_extract(self.X_tr.lyrics)
@@ -105,7 +107,7 @@ class Analyser:
     def get_tfidf(self):
         self.all_vecs = self.tfidf_vec()
 
-    def add_noise(self, amount = 0.8):
+    def add_noise(self, amount = 0.95):
         clean = self.all_data.lyrics.tolist()
         noisy = [self._generate_noise(lyric, amount) for lyric in clean]
         self.all_data.lyrics
