@@ -3,6 +3,7 @@ import numpy as np
 import string
 import re
 import pandas as pd
+from nltk.corpus import stopwords
 
 class Dataset:
     def __init__(self, dir, name):
@@ -10,6 +11,7 @@ class Dataset:
         self.data = None
         self.dir = dir
         self.diversities = {}
+        self.stopwords = stopwords.words('english')
         self.data_df = None
         self.load_data()
         self.df_create()
@@ -22,6 +24,13 @@ class Dataset:
             self.data[k] = self.tokenise(v)
         self.summary_statistics()
 
+    def load_spam(self, dir='data/spam.txt'):
+        with open(dir) as infile:
+            spam_data = infile.readlines()
+        for item in spam_data:
+            key, val = item.split(' ', 1)
+            self.data[key] = self.tokenise(val)
+
     def tokenise(self, data_value):
         # Remove new line splitters
         to_string = ' '.join(data_value.splitlines()).lower()
@@ -29,8 +38,11 @@ class Dataset:
         # Remove song meta information e.g. [chorus] and [Guitar Solo]
         to_string = re.sub(r'\(.*?\)|\[.*?\]|\t', '', to_string)
 
-        # Split on spaces
-        listify = to_string.split(' ')
+        # Split on spaces and remove stopwords
+        listify = [item for item in to_string.split(' ') if item not in self.stopwords]
+
+        # Filter empty list items
+        listify = list(filter(None, listify))
 
         # Strip punctuations
         no_punc = [''.join(char for char in word if char not in string.punctuation) for word in listify]

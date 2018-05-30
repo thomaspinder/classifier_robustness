@@ -1,15 +1,15 @@
-from data import datasets as dt
-from models import classifiers as clf, preprocess as pr
+import datasets as dt
+import classifiers as clf
+import preprocess as pr
 import numpy as np
 
 if __name__=='__main__':
     # Load in data objects
-    eminem = dt.Dataset('data/Eminem_lyrics.pickle', 'Eminem')
-    queen = dt.Dataset('data/Queen_lyrics.pickle', 'Queen')
+    eminem = dt.Dataset('data/Blur_lyrics.pickle', 'Blur')
+    queen = dt.Dataset('data/Oasis_lyrics.pickle', 'Oasis')
 
     # Preprocess
-    analysis = pr.Analyser(eminem, queen)
-    analysis.add_noise()
+    analysis = pr.Analyser(eminem, queen, 0.9)
     # analysis.get_summaries()
     analysis.train_test()
     analysis.get_tfidf()
@@ -23,10 +23,12 @@ if __name__=='__main__':
                                                                                   np.round(100 * logit_roc[1], 2),
                                                                                   '-' * 80))
 
-    # Fit Random Forest
+    # Determine optimal number of trees
     print('Random Forest:')
-    tree_count = clf.test_random_forest(analysis, 200, 10, True)
+    tree_count = clf.test_random_forest(analysis, 50, 10, True)
     print('Fitting on {} trees.'.format(tree_count))
+
+    # Fit Random Forest
     rf_acc, rf_roc = clf.random_forest(analysis, tree_count, 10)
     print('Accuracy: {}% +/-{}\nROC: {}% +/- {}\n{}'.format(np.round(rf_acc[0] * 100, 2),
                                                                                   np.round(100 * rf_acc[1], 2),

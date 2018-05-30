@@ -4,7 +4,6 @@ from sklearn.manifold import TSNE
 from utils.key_distances import euclideanKeyboardDistance
 import numpy as np
 import sys
-import random
 import string
 import logging
 import multiprocessing
@@ -17,9 +16,10 @@ logging.basicConfig(filename='modelling.log', level=logging.INFO,
 
 
 class Analyser:
-    def __init__(self, dataset1, dataset2):
+    def __init__(self, dataset1, dataset2, noise=0):
         self.data1 = dataset1
         self.data2 = dataset2
+        self.labels = (self.data1.name, self.data2.name)
         self.all_data = None
         self._create()
         self.X_tr = None
@@ -31,6 +31,11 @@ class Analyser:
         self.b_labels = None
         self.seqs_matrix = None
         self.letters = list(string.ascii_letters)
+        if noise>0 and noise <= 1:
+            self.add_noise(noise)
+        else:
+            raise ValueError('Noise amount must be between 0 and 1 with 0 indicating no noise.')
+        self.noise_amount = noise
 
     def _create(self):
         """
@@ -42,7 +47,7 @@ class Analyser:
         self.all_data = self.data1.data_df.append(self.data2.data_df).reset_index()
         self.all_data.columns = ['track', 'lyrics', 'label']
         self.all_data = self.all_data.drop_duplicates(subset='track')
-        self.all_data = self.all_data[self.all_data.lyrics.apply(len) > 100]
+        self.all_data = self.all_data[self.all_data.lyrics.apply(len) > 10]
         self.backup = deepcopy(self.all_data)
         logging.info('Full Dataset Shape: {}'.format(self.all_data.shape))
 
@@ -58,7 +63,8 @@ class Analyser:
                                                                       random_state=123)
         self.features = X
         self.labels = y
-        self.b_labels = np.array([0 if item == 'Eminem' else 1 for item in y])
+        labels_uni = np.unique(y)
+        self.b_labels = np.array([0 if item == labels_uni[0] else 1 for item in y])
         logging.info('Train Size: {}'.format(self.X_tr.shape))
         logging.info('Test Size: {}'.format(self.y_tr.shape))
 
@@ -94,15 +100,10 @@ class Analyser:
         """
         self.split_check()
         word_vecs = TfidfVectorizer(sublinear_tf=True, strip_accents='unicode', analyzer='word', ngram_range=(1,1),
-                                    stop_words='english', max_features=200)
+                                    stop_words='english', max_features=200, smooth_idf=True)
         text = self.text_extract(self.all_data.lyrics)
         all_vecs = word_vecs.fit_transform(text)
-        # X_tr_text = self.text_extract(self.X_tr.lyrics)
-        # X_te_text = self.text_extract(self.X_te.lyrics)
-        # train_vecs = word_vecs.transform(X_tr_text)
-        # test_vecs = word_vecs.transform(X_te_text)
-        # old = vstack([train_vecs, test_vecs])
-        return all_vecs # train_vecs, test_vecs, all_vecs
+        return all_vecs
 
     def get_tfidf(self):
         self.all_vecs = self.tfidf_vec()
@@ -110,7 +111,7 @@ class Analyser:
     def add_noise(self, amount = 0.95):
         clean = self.all_data.lyrics.tolist()
         noisy = [self._generate_noise(lyric, amount) for lyric in clean]
-        self.all_data.lyrics
+        self.all_data.lyrics = noisy
 
     def _generate_noise(self, string, amount):
         noise_amount = np.ceil(amount*len(string)).astype(int)

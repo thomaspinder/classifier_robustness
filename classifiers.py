@@ -49,7 +49,8 @@ def test_random_forest(data_obj, max_trees = 400, increment = 10, plot=True, k=1
         plt.title('Random Forest Classifier Performance')
         plt.ylabel('Accuracy')
         plt.xlabel('Number of Trees')
-        plt.savefig('plots/{}_{}_rf.png'.format(data_obj.data1.name, data_obj.data2.name))
+        plt.savefig('plots/{}_{}_{}_noise_rf.png'.format(data_obj.data1.name, data_obj.data2.name,
+                                                         data_obj.noise_amount))
     return (np.argmax(means)+1)*10
 
 
