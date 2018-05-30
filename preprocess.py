@@ -31,7 +31,7 @@ class Analyser:
         self.b_labels = None
         self.seqs_matrix = None
         self.letters = list(string.ascii_letters)
-        if noise>0 and noise <= 1:
+        if 0 <= noise < 1:
             self.add_noise(noise)
         else:
             raise ValueError('Noise amount must be between 0 and 1 with 0 indicating no noise.')
@@ -100,7 +100,7 @@ class Analyser:
         """
         self.split_check()
         word_vecs = TfidfVectorizer(sublinear_tf=True, strip_accents='unicode', analyzer='word', ngram_range=(1,1),
-                                    stop_words='english', max_features=200, smooth_idf=True)
+                                    stop_words='english', max_features=50, smooth_idf=True)
         text = self.text_extract(self.all_data.lyrics)
         all_vecs = word_vecs.fit_transform(text)
         return all_vecs

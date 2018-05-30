@@ -1,39 +1,41 @@
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score, train_test_split, cross_validate
+from sklearn.model_selection import cross_val_score, cross_validate, ShuffleSplit
 from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
 import matplotlib.pyplot as plt
 import numpy as np
-import scikitplot as skplt
 from keras.models import Model
 from keras.layers import LSTM, Activation, Dense, Dropout, Input, Embedding
 from keras.wrappers.scikit_learn import KerasClassifier
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
-from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping, TensorBoard
 from sklearn.model_selection import KFold
 
+
+# Fit a logistic regression model to tf-idf vectors
 def logistic_regression(data_obj, k):
     clf = LogisticRegression(solver='liblinear', random_state=123)
-    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=k, scoring=['accuracy', 'roc_auc'],
+    cv = ShuffleSplit(n_splits=k, test_size=0.3, random_state=123)
+    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'roc_auc'],
                             return_train_score=False)
     accuracy = [np.mean(scores['test_accuracy']), 1.96*np.std(scores['test_accuracy'])/np.sqrt(k)]
     roc = [np.mean(scores['test_roc_auc']), 1.96*np.std(scores['test_roc_auc'])/np.sqrt(k)]
     return accuracy, roc
 
+
+# Fit a random forest model to tf-idf vectors
 def random_forest(data_obj, tree_count, k):
     clf = RandomForestClassifier(n_jobs=-1, n_estimators=tree_count, random_state=123)
-    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=k, scoring=['accuracy', 'roc_auc'],
+    cv = ShuffleSplit(n_splits=k, test_size=0.3, random_state=123)
+    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'roc_auc'],
                             return_train_score=False)
     accuracy = [np.mean(scores['test_accuracy']), 1.96*np.std(scores['test_accuracy'])/np.sqrt(k)]
     roc = [np.mean(scores['test_roc_auc']), 1.96*np.std(scores['test_roc_auc'])/np.sqrt(k)]
     return accuracy, roc
 
-def svm(data_ob, k):
-    pass
 
-
+# Test the number of trees required for an optimal random forest
 def test_random_forest(data_obj, max_trees = 400, increment = 10, plot=True, k=10):
     means = []
     sds = []
@@ -68,26 +70,25 @@ class LSTM_model:
         self.model = None
         self.preprocess()
 
+    # Encode and reshape the labels object into the correct dimensions and datatype for an LSTM
     def _encode_labels(self):
         enc = LabelEncoder()
         y_enc = enc.fit_transform(self.y)
         return y_enc.reshape(-1, 1)
 
+    # Store the words in a tokened matrix of consistent dimensions - essential for an LSTM
     def tokenise(self, input_text, lower=True):
-        """
-        :param top_n: The top n most popular words to keen.
-        :return:
-        """
         tokeniser = Tokenizer(self.max_words, lower=lower)
         tokeniser.fit_on_texts(input_text)
         seqs = tokeniser.texts_to_sequences(input_text)
         seqs_matrix = pad_sequences(seqs, maxlen=self.word_count)
         return seqs_matrix
 
+    # Encode the labels as binary strings
     def preprocess(self):
         self._encode_labels()
-        self.X_tr, self.X_te, self.y_tr, self.y_te = train_test_split(self.X, self.y_enc)
 
+    # Define the LSTM model's structure
     def _define_model(self):
         inputs = Input(name='inputs', shape=[self.word_count])
         layer = Embedding(self.max_words, 50, input_length=self.word_count)(inputs)
@@ -99,28 +100,43 @@ class LSTM_model:
         layer = Activation('sigmoid')(layer)
         self.model = Model(inputs=inputs, outputs=layer)
         self.model.compile(loss='binary_crossentropy', optimizer='adam',metrics=['accuracy'])
+        return self.model
 
+    # Fit a single LSTM
     def fit(self):
         self._define_model()
-        X_in = self.tokenise(self.X_tr)
+        X_in = self.tokenise(self.X)
         early_stopping = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=5)
         tboard = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
-        self.model.fit(X_in, self.y_tr, batch_size=16, epochs=100,
-                  validation_split=0.2, callbacks=[early_stopping, tboard])
+        self.model.fit(X_in, self.y_enc, batch_size=16, epochs=100,
+                       validation_split=0.2, callbacks=[early_stopping, tboard])
 
+    # Fit an LSTM with 10-fold cross-validation
     def cv(self, k=10):
+        self._define_model()
+        X_in = self.tokenise(self.X)
         early_stopping = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=5)
         tboard = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
-        clf = KerasClassifier(build_fn=self._define_model, epochs = 50, batch_size = 12,
-                              callbacks=[early_stopping, tboard])
+        clf = KerasClassifier(build_fn=lstm_model, epochs = 50, batch_size = 12, validation_split=0.3)
         folds = KFold(n_splits=k, random_state=123)
-        accuracies = cross_val_score(clf, self.tokenise(self.tokenise(self.X)), self.y, cv=k)
-        return np.mean(accuracies), 1.96*(np.std(accuracies)/np.sqrt(k))
+        accuracies = cross_val_score(clf, X_in, self.y_enc, cv=folds, fit_params={'callbacks': [early_stopping,
+                                                                                                tboard]})
+        return [np.mean(accuracies), 1.96*(np.std(accuracies)/np.sqrt(k))]
 
     def test(self):
         X_in = self.tokenise(self.X_te)
         history = self.model.evaluate(X_in, self.y_te)
         print('Test set\n  Loss: {:0.3f}\n  Accuracy: {:0.3f}'.format(history[0], history[1]))
 
-    def get_embeddings(self):
-        pass
+def lstm_model():
+    inputs = Input(name='inputs', shape=[750])
+    layer = Embedding(200, 50, input_length=750)(inputs)
+    layer = LSTM(64)(layer)
+    layer = Dense(256, name='FC1')(layer)
+    layer = Activation('relu')(layer)
+    layer = Dropout(0.5)(layer)
+    layer = Dense(1, name='out_layer')(layer)
+    layer = Activation('sigmoid')(layer)
+    model = Model(inputs=inputs, outputs=layer)
+    model.compile(loss='binary_crossentropy', optimizer='adam',metrics=['accuracy'])
+    return model
