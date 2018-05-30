@@ -1,9 +1,6 @@
-import preprocess as pr
-import datasets as dt
-import classifiers as clf
+from data import datasets as dt
+from models import classifiers as clf, preprocess as pr
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-
 
 if __name__=='__main__':
     # Load in data objects

@@ -103,6 +103,9 @@ class Lyrics:
 
 
 if __name__ == '__main__':
-    scraper = Lyrics('Queen', 'http://www.mldb.org/artist-1498-queen.html', verbose=True)
+    scraper = Lyrics('Blur', 'http://www.mldb.org/artist-414-blur.html', verbose=True)
+    scraper.scrape()
+    scraper.print_results()
+    scraper = Lyrics('Oasis', 'http://www.mldb.org/artist-801-oasis.html', verbose=True)
     scraper.scrape()
     scraper.print_results()
