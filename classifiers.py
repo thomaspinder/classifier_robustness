@@ -138,21 +138,21 @@ class LSTM_model:
         self._define_model()
         X_in_tr = self.tokenise(self.X_tr)
         X_in_te = self.tokenise(self.X_te)
-        early_stopping = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=5)
+        early_stopping = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=3)
         tboard = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
-        self.model.fit(X_in_tr, self.y_enc_tr, batch_size=16, epochs=100,
-                       validation_split=0.2, callbacks=[early_stopping])
+        self.model.fit(X_in_tr, self.y_enc_tr, batch_size=16, epochs=50,
+                       validation_split=0.3, callbacks=[early_stopping])
         preds = self.model.predict(X_in_te)
-        precision, recall = self.evaluate_prediction(preds)
-        return precision, recall
+        accuracy, precision, recall = self.evaluate_prediction(preds)
+        return accuracy, precision, recall
 
     # Fit an LSTM with 10-fold cross-validation
-    def cv(self, k=10):
+    def cv(self, k=5):
         self._define_model()
         X_in = self.tokenise(self.X)
-        early_stopping = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=5)
+        early_stopping = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=3)
         tboard = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
-        clf = KerasClassifier(build_fn=lstm_model, epochs = 50, batch_size = 12, validation_split=0.3)
+        clf = KerasClassifier(build_fn=lstm_model, epochs = 50, batch_size = 32, validation_split=0.3)
         folds = KFold(n_splits=k, random_state=123)
         accuracies = cross_val_score(clf, X_in, self.y_enc, cv=folds, fit_params={'callbacks': [early_stopping]})
         return [np.mean(accuracies), 1.96*(np.std(accuracies)/np.sqrt(k))]
@@ -166,6 +166,10 @@ class LSTM_model:
         rounded = np.round(preds.ravel(), 0)
         tn, fp, fn, tp = confusion_matrix(y_true=self.y_enc_te, y_pred=rounded).ravel()
         try:
+            accuracy = (tp+tn)/(tp+fp+tn+fn)
+        except:
+            accuracy = 0
+        try:
             precision = tp/(tp+fp)
         except:
             precision = 0
@@ -173,7 +177,7 @@ class LSTM_model:
             recall = tp/(tp+fn)
         except:
             recall = 0
-        return [precision, 0], [recall, 0]
+        return [accuracy, 0], [precision, 0], [recall, 0]
 
 def lstm_model():
     inputs = Input(name='inputs', shape=[750])

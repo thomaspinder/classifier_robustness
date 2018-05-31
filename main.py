@@ -8,8 +8,8 @@ if __name__=='__main__':
     np.random.seed(123)
 
     # Load in data objects
-    blur = dt.Dataset('data/Blur_lyrics.pickle', 'Blur')
-    oasis = dt.Dataset('data/Oasis_lyrics.pickle', 'Oasis', True)
+    blur = dt.Dataset('data/Eminem_lyrics.pickle', 'Eminem')
+    oasis = dt.Dataset('data/Queen_lyrics.pickle', 'Queen', True)
     analysis = pr.Analyser(blur, oasis, 0)
     # analysis.get_summaries()
     analysis.train_test()
@@ -77,21 +77,19 @@ if __name__=='__main__':
         # Fit LSTM
         print('LSTM:')
         lstm_clf = clf.LSTM_model(analysis, 750, 200)
-        lstm_prec, lstm_rec = lstm_clf.fit()
-        lstm_acc = lstm_clf.cv()
-        print('Accuracy: {} +/- {}%\nPrecision: {}\nRecall: {}'.format(lstm_acc[0]*100,
-                                                                       lstm_acc[1]*100,
-                                                                       np.round(lstm_prec*100, 2),
-                                                                       np.round(lstm_rec*100, 2)))
+        lstm_acc, lstm_prec, lstm_rec = lstm_clf.fit()
+        # lstm_acc = lstm_clf.cv()
+        print('Accuracy: {}\nPrecision: {}\nRecall: {}'.format(lstm_acc[0]*100,
+                                                                       np.round(lstm_prec[0]*100, 2),
+                                                                       np.round(lstm_rec[0]*100, 2)))
         result = ['lstm', i]
-        result.extend(lstm_acc)
-        result.append(lstm_prec, 0, lstm_rec, 0)
+        result.extend(lstm_acc+lstm_prec+lstm_rec)
         results.append(result)
         print('{}\n{}'.format('-'*80, '-'*80))
 
     # Format and write results to file
     results_df = pd.DataFrame(results, columns=['classifier', 'noise', 'accuracy', 'accuracy_se', 'precision',
                                                 'precision_se', 'recall', 'recall_se'])
-    results_df.to_csv('results/noise_results.csv', index=False)
+    results_df.to_csv('results/eminem_queen_results.csv', index=False)
 
 
