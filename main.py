@@ -9,7 +9,8 @@ if __name__=='__main__':
 
     # Load in data objects
     blur = dt.Dataset('data/Blur_lyrics.pickle', 'Blur')
-    oasis = dt.Dataset('data/Oasis_lyrics.pickle', 'Oasis')
+    #blur.zipf_plot()
+    oasis = dt.Dataset('data/Oasis_lyrics.pickle', 'Oasis', True)
     analysis = pr.Analyser(blur, oasis, 0)
     # analysis.get_summaries()
     analysis.train_test()
@@ -32,7 +33,7 @@ if __name__=='__main__':
 
         # Fit logistic regression
         print('Logistic Regression:')
-        logit_acc, logit_roc = clf.logistic_regression(analysis, 10)
+        logit_acc, logit_roc = clf.svm(analysis, 10)
         print('Accuracy: {}% +/-{}\nROC: {}% +/- {}\n'.format(np.round(logit_acc[0] * 100, 2),
                                                                                       np.round(100 * logit_acc[1], 2),
                                                                                       np.round(100 * logit_roc[0], 2),
@@ -47,6 +48,8 @@ if __name__=='__main__':
                                                                                       np.round(100 * rf_roc[0], 2),
                                                                                       np.round(100 * rf_roc[1], 2)))
         result.extend(rf_acc+rf_roc)
+
+        # Fit Naive-Bayes
 
         # Fit LSTM
         print('LSTM:')

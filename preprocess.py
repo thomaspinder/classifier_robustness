@@ -9,6 +9,8 @@ import logging
 import multiprocessing
 import gensim.models.word2vec as w2v
 from copy import deepcopy
+import matplotlib.pyplot as plt
+from collections import Counter
 from gensim.models import KeyedVectors
 logging.basicConfig(filename='modelling.log', level=logging.INFO,
                     format= '[%(asctime)s] %(levelname)s - %(message)s',

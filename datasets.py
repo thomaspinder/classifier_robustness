@@ -4,9 +4,13 @@ import string
 import re
 import pandas as pd
 from nltk.corpus import stopwords
+from collections import Counter
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 
 class Dataset:
-    def __init__(self, dir, name):
+    def __init__(self, dir, name, zipf=False):
         self.name=name
         self.data = None
         self.dir = dir
@@ -15,6 +19,21 @@ class Dataset:
         self.data_df = None
         self.load_data()
         self.df_create()
+        self.plot_zipf(zipf)
+
+    def plot_zipf(self, zipf):
+        words = Counter([word for lyric in self.data_df.ix[:, 0].tolist() for word in lyric])
+        vals = np.array(list(words.values()))
+        if zipf:
+            sns.kdeplot(vals, bw=0.8, label=self.name, lw=3, linestyle="--")
+            plt.ylabel('Density')
+            plt.xlim(-2, 60)
+            plt.xlabel('Counts')
+            plt.title("Density Plots of Each Dataset's Word Count Distribution")
+            plt.legend(loc='upper right')
+            plt.savefig('plots/zipf_density.png')
+        else:
+            sns.kdeplot(vals, bw=0.8, label=self.name, lw=3)
 
     def load_data(self):
         with open(self.dir, 'rb') as infile:
@@ -49,7 +68,6 @@ class Dataset:
 
         # Filter blank list items
         filtered = list(filter(None, no_punc))
-
         return filtered
 
     def print_data(self):

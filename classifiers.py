@@ -1,7 +1,10 @@
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score, cross_validate, ShuffleSplit
 from sklearn.preprocessing import LabelEncoder
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score, roc_curve, auc
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import Model
@@ -27,6 +30,26 @@ def logistic_regression(data_obj, k):
 # Fit a random forest model to tf-idf vectors
 def random_forest(data_obj, tree_count, k):
     clf = RandomForestClassifier(n_jobs=-1, n_estimators=tree_count, random_state=123)
+    cv = ShuffleSplit(n_splits=k, test_size=0.3, random_state=123)
+    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'roc_auc'],
+                            return_train_score=False)
+    accuracy = [np.mean(scores['test_accuracy']), 1.96*np.std(scores['test_accuracy'])/np.sqrt(k)]
+    roc = [np.mean(scores['test_roc_auc']), 1.96*np.std(scores['test_roc_auc'])/np.sqrt(k)]
+    return accuracy, roc
+
+
+def naive_bayes(data_obj, k):
+    clf = MultinomialNB()
+    cv = ShuffleSplit(n_splits=k, test_size=0.3, random_state=123)
+    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'roc_auc'],
+                            return_train_score=False)
+    accuracy = [np.mean(scores['test_accuracy']), 1.96*np.std(scores['test_accuracy'])/np.sqrt(k)]
+    roc = [np.mean(scores['test_roc_auc']), 1.96*np.std(scores['test_roc_auc'])/np.sqrt(k)]
+    return accuracy, roc
+
+
+def svm(data_obj, k):
+    clf = SVC(kernel='rbf', random_state=123)
     cv = ShuffleSplit(n_splits=k, test_size=0.3, random_state=123)
     scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'roc_auc'],
                             return_train_score=False)
@@ -66,14 +89,16 @@ class LSTM_model:
         self.y_te = None
         self.word_count = word_count
         self.max_words = max_word
-        self.y_enc = self._encode_labels()
+        self.y_enc = self._encode_labels(self.y)
+        self.y_enc_tr = self._encode_labels(self.y_tr)
+        self.y_enc_te = self._encode_labels(self.y_te)
         self.model = None
         self.preprocess()
 
     # Encode and reshape the labels object into the correct dimensions and datatype for an LSTM
-    def _encode_labels(self):
+    def _encode_labels(self, label):
         enc = LabelEncoder()
-        y_enc = enc.fit_transform(self.y)
+        y_enc = enc.fit_transform(label)
         return y_enc.reshape(-1, 1)
 
     # Store the words in a tokened matrix of consistent dimensions - essential for an LSTM
@@ -105,11 +130,16 @@ class LSTM_model:
     # Fit a single LSTM
     def fit(self):
         self._define_model()
-        X_in = self.tokenise(self.X)
+        X_in_tr = self.tokenise(self.X_tr)
+        X_in_te = self.tokenise(self.X_te)
         early_stopping = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=5)
         tboard = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
-        self.model.fit(X_in, self.y_enc, batch_size=16, epochs=100,
+        self.model.fit(X_in_tr, self.y_enc_tr, batch_size=16, epochs=100,
                        validation_split=0.2, callbacks=[early_stopping, tboard])
+        preds = self.model.predict(self.X_te).ravel()
+        fpr_keras, tpr_keras, thresholds_keras = roc_curve(self.y_enc_te, preds)
+        auc_keras = auc(fpr_keras, tpr_keras)
+        return auc_keras
 
     # Fit an LSTM with 10-fold cross-validation
     def cv(self, k=10):
