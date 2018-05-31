@@ -1,10 +1,10 @@
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score, cross_validate, ShuffleSplit
+from sklearn.model_selection import cross_val_score, cross_validate, ShuffleSplit, train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score, roc_curve, auc
+from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import Model
@@ -20,42 +20,48 @@ from sklearn.model_selection import KFold
 def logistic_regression(data_obj, k):
     clf = LogisticRegression(solver='liblinear', random_state=123)
     cv = ShuffleSplit(n_splits=k, test_size=0.3, random_state=123)
-    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'roc_auc'],
+    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'precision', 'recall'],
                             return_train_score=False)
     accuracy = [np.mean(scores['test_accuracy']), 1.96*np.std(scores['test_accuracy'])/np.sqrt(k)]
-    roc = [np.mean(scores['test_roc_auc']), 1.96*np.std(scores['test_roc_auc'])/np.sqrt(k)]
-    return accuracy, roc
+    precision = [np.mean(scores['test_precision']), 1.96*np.std(scores['test_precision'])/np.sqrt(k)]
+    recall = [np.mean(scores['test_recall']), 1.96*np.std(scores['test_recall'])/np.sqrt(k)]
+    #roc = [np.mean(scores['test_roc_auc']), 1.96*np.std(scores['test_roc_auc'])/np.sqrt(k)]
+    return accuracy, precision, recall
 
 
 # Fit a random forest model to tf-idf vectors
 def random_forest(data_obj, tree_count, k):
     clf = RandomForestClassifier(n_jobs=-1, n_estimators=tree_count, random_state=123)
     cv = ShuffleSplit(n_splits=k, test_size=0.3, random_state=123)
-    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'roc_auc'],
+    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'precision', 'recall'],
                             return_train_score=False)
     accuracy = [np.mean(scores['test_accuracy']), 1.96*np.std(scores['test_accuracy'])/np.sqrt(k)]
-    roc = [np.mean(scores['test_roc_auc']), 1.96*np.std(scores['test_roc_auc'])/np.sqrt(k)]
-    return accuracy, roc
+    precision = [np.mean(scores['test_precision']), 1.96*np.std(scores['test_precision'])/np.sqrt(k)]
+    recall = [np.mean(scores['test_recall']), 1.96*np.std(scores['test_recall'])/np.sqrt(k)]
+    return accuracy, precision, recall
 
 
 def naive_bayes(data_obj, k):
     clf = MultinomialNB()
     cv = ShuffleSplit(n_splits=k, test_size=0.3, random_state=123)
-    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'roc_auc'],
+    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'precision', 'recall'],
                             return_train_score=False)
     accuracy = [np.mean(scores['test_accuracy']), 1.96*np.std(scores['test_accuracy'])/np.sqrt(k)]
-    roc = [np.mean(scores['test_roc_auc']), 1.96*np.std(scores['test_roc_auc'])/np.sqrt(k)]
-    return accuracy, roc
+    precision = [np.mean(scores['test_precision']), 1.96*np.std(scores['test_precision'])/np.sqrt(k)]
+    recall = [np.mean(scores['test_recall']), 1.96*np.std(scores['test_recall'])/np.sqrt(k)]
+    return accuracy, precision, recall
 
 
 def svm(data_obj, k):
     clf = SVC(kernel='rbf', random_state=123)
     cv = ShuffleSplit(n_splits=k, test_size=0.3, random_state=123)
-    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'roc_auc'],
+    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'recall','precision'],
                             return_train_score=False)
+    precision = [np.mean(scores['test_precision']), 1.96*np.std(scores['test_precision'])/np.sqrt(k)]
     accuracy = [np.mean(scores['test_accuracy']), 1.96*np.std(scores['test_accuracy'])/np.sqrt(k)]
-    roc = [np.mean(scores['test_roc_auc']), 1.96*np.std(scores['test_roc_auc'])/np.sqrt(k)]
-    return accuracy, roc
+    precision = [np.mean(scores['test_precision']), 1.96*np.std(scores['test_precision'])/np.sqrt(k)]
+    recall = [np.mean(scores['test_recall']), 1.96*np.std(scores['test_recall'])/np.sqrt(k)]
+    return accuracy, precision, recall
 
 
 # Test the number of trees required for an optimal random forest
@@ -90,10 +96,10 @@ class LSTM_model:
         self.word_count = word_count
         self.max_words = max_word
         self.y_enc = self._encode_labels(self.y)
+        self.preprocess()
         self.y_enc_tr = self._encode_labels(self.y_tr)
         self.y_enc_te = self._encode_labels(self.y_te)
         self.model = None
-        self.preprocess()
 
     # Encode and reshape the labels object into the correct dimensions and datatype for an LSTM
     def _encode_labels(self, label):
@@ -111,7 +117,7 @@ class LSTM_model:
 
     # Encode the labels as binary strings
     def preprocess(self):
-        self._encode_labels()
+        self.X_tr, self.X_te, self.y_tr, self.y_te = train_test_split(self.X, self.y_enc)
 
     # Define the LSTM model's structure
     def _define_model(self):
@@ -135,11 +141,10 @@ class LSTM_model:
         early_stopping = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=5)
         tboard = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
         self.model.fit(X_in_tr, self.y_enc_tr, batch_size=16, epochs=100,
-                       validation_split=0.2, callbacks=[early_stopping, tboard])
-        preds = self.model.predict(self.X_te).ravel()
-        fpr_keras, tpr_keras, thresholds_keras = roc_curve(self.y_enc_te, preds)
-        auc_keras = auc(fpr_keras, tpr_keras)
-        return auc_keras
+                       validation_split=0.2, callbacks=[early_stopping])
+        preds = self.model.predict(X_in_te)
+        precision, recall = self.evaluate_prediction(preds)
+        return precision, recall
 
     # Fit an LSTM with 10-fold cross-validation
     def cv(self, k=10):
@@ -149,14 +154,26 @@ class LSTM_model:
         tboard = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
         clf = KerasClassifier(build_fn=lstm_model, epochs = 50, batch_size = 12, validation_split=0.3)
         folds = KFold(n_splits=k, random_state=123)
-        accuracies = cross_val_score(clf, X_in, self.y_enc, cv=folds, fit_params={'callbacks': [early_stopping,
-                                                                                                tboard]})
+        accuracies = cross_val_score(clf, X_in, self.y_enc, cv=folds, fit_params={'callbacks': [early_stopping]})
         return [np.mean(accuracies), 1.96*(np.std(accuracies)/np.sqrt(k))]
 
     def test(self):
         X_in = self.tokenise(self.X_te)
         history = self.model.evaluate(X_in, self.y_te)
         print('Test set\n  Loss: {:0.3f}\n  Accuracy: {:0.3f}'.format(history[0], history[1]))
+
+    def evaluate_prediction(self, preds):
+        rounded = np.round(preds.ravel(), 0)
+        tn, fp, fn, tp = confusion_matrix(y_true=self.y_enc_te, y_pred=rounded).ravel()
+        try:
+            precision = tp/(tp+fp)
+        except:
+            precision = 0
+        try:
+            recall = tp/(tp+fn)
+        except:
+            recall = 0
+        return [precision, 0], [recall, 0]
 
 def lstm_model():
     inputs = Input(name='inputs', shape=[750])
