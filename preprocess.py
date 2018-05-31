@@ -149,14 +149,7 @@ class Analyser:
 
     def _w2v_vec(self, text, epochs = 800, save=True):
         w2v_model = w2v.Word2Vec(
-            sg = 0,
-            seed = 123,
-            workers=multiprocessing.cpu_count(),
-            min_count=3,
-            window=10,
-            hs=0,
-            sample=1e-3
-        )
+            sg = 0, seed = 123, workers=multiprocessing.cpu_count(), min_count=3, window=10, hs=0, sample=1e-3)
         w2v_model.build_vocab(text)
         print('Word2Vec Vocabulary Size: {}'.format(len(w2v_model.wv.vocab)))
         w2v_model.train(text, epochs=epochs, total_examples=len(text))
