@@ -22,6 +22,9 @@ class Dataset:
         self.plot_zipf(zipf)
 
     def plot_zipf(self, zipf):
+        """
+        Plot the word frequency distribution
+        """
         words = Counter([word for lyric in self.data_df.ix[:, 0].tolist() for word in lyric])
         vals = np.array(list(words.values()))
         if zipf:
@@ -36,19 +39,15 @@ class Dataset:
             sns.kdeplot(vals, bw=0.8, label=self.name, lw=3)
 
     def load_data(self):
+        """
+        Load the data into a dictionary
+        """
         with open(self.dir, 'rb') as infile:
             az_dataset = pickle.load(infile)
         self.data = az_dataset
         for k, v in self.data.items():
             self.data[k] = self.tokenise(v)
         self.summary_statistics()
-
-    def load_spam(self, dir='data/spam.txt'):
-        with open(dir) as infile:
-            spam_data = infile.readlines()
-        for item in spam_data:
-            key, val = item.split(' ', 1)
-            self.data[key] = self.tokenise(val)
 
     def tokenise(self, data_value):
         # Remove new line splitters
@@ -74,10 +73,16 @@ class Dataset:
         print(self.data)
 
     def diversity(self):
+        """
+        Measure the datasets lexical diversity
+        """
         for k, v in self.data.items():
             self.diversities[k] = len(set(v))/len(v)
 
     def summary_statistics(self):
+        """
+        Calculate summary statistics
+        """
         self.song_count = len(self.data.items())
         total_words = 0
         for val in list(self.data.values()):

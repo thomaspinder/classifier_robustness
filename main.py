@@ -5,13 +5,14 @@ import numpy as np
 import pandas as pd
 
 if __name__=='__main__':
+    lstm_cv=False
     np.random.seed(123)
 
     # Load in data objects
-    blur = dt.Dataset('data/Eminem_lyrics.pickle', 'Eminem')
-    oasis = dt.Dataset('data/Queen_lyrics.pickle', 'Queen', True)
+    blur = dt.Dataset('data/Oasis_lyrics.pickle', 'Oasis')
+    oasis = dt.Dataset('data/Blur_lyrics.pickle', 'Blur', True)
     analysis = pr.Analyser(blur, oasis, 0)
-    # analysis.get_summaries()
+    analysis.get_summaries()
     analysis.train_test()
     analysis.get_tfidf()
 
@@ -76,9 +77,10 @@ if __name__=='__main__':
 
         # Fit LSTM
         print('LSTM:')
-        lstm_clf = clf.LSTM_model(analysis, 750, 200)
+        lstm_clf = clf.LSTM_model(analysis, 734, 200)
         lstm_acc, lstm_prec, lstm_rec = lstm_clf.fit()
-        # lstm_acc = lstm_clf.cv()
+        if lstm_cv:
+            lstm_acc = lstm_clf.cv()
         print('Accuracy: {}\nPrecision: {}\nRecall: {}'.format(lstm_acc[0]*100,
                                                                        np.round(lstm_prec[0]*100, 2),
                                                                        np.round(lstm_rec[0]*100, 2)))

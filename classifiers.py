@@ -52,18 +52,6 @@ def naive_bayes(data_obj, k):
     return accuracy, precision, recall
 
 
-def svm(data_obj, k):
-    clf = SVC(kernel='rbf', random_state=123)
-    cv = ShuffleSplit(n_splits=k, test_size=0.3, random_state=123)
-    scores = cross_validate(clf, data_obj.all_vecs, data_obj.b_labels, cv=cv, scoring=['accuracy', 'recall','precision'],
-                            return_train_score=False)
-    precision = [np.mean(scores['test_precision']), 1.96*np.std(scores['test_precision'])/np.sqrt(k)]
-    accuracy = [np.mean(scores['test_accuracy']), 1.96*np.std(scores['test_accuracy'])/np.sqrt(k)]
-    precision = [np.mean(scores['test_precision']), 1.96*np.std(scores['test_precision'])/np.sqrt(k)]
-    recall = [np.mean(scores['test_recall']), 1.96*np.std(scores['test_recall'])/np.sqrt(k)]
-    return accuracy, precision, recall
-
-
 # Test the number of trees required for an optimal random forest
 def test_random_forest(data_obj, max_trees = 400, increment = 10, plot=True, k=10):
     means = []
@@ -180,8 +168,8 @@ class LSTM_model:
         return [accuracy, 0], [precision, 0], [recall, 0]
 
 def lstm_model():
-    inputs = Input(name='inputs', shape=[750])
-    layer = Embedding(200, 50, input_length=750)(inputs)
+    inputs = Input(name='inputs', shape=[734])
+    layer = Embedding(200, 50, input_length=734)(inputs)
     layer = LSTM(64)(layer)
     layer = Dense(256, name='FC1')(layer)
     layer = Activation('relu')(layer)

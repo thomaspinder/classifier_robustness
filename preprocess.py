@@ -108,14 +108,23 @@ class Analyser:
         return all_vecs
 
     def get_tfidf(self):
+        """
+        Calculate tf-idf vectors
+        """
         self.all_vecs = self.tfidf_vec()
 
-    def add_noise(self, amount = 0.95):
+    def add_noise(self, amount = 0.9):
+        """
+        Synthetically induce noise to the data
+        """
         clean = self.all_data.lyrics.tolist()
         noisy = [self._generate_noise(lyric, amount) for lyric in clean]
         self.all_data.lyrics = noisy
 
     def _generate_noise(self, string, amount):
+        """
+        Noise Generating function for a given string and the desired noise amount
+        """
         noise_amount = np.ceil(amount*len(string)).astype(int)
         candidates = np.random.choice(len(string), noise_amount)
         for i in candidates:
@@ -126,6 +135,9 @@ class Analyser:
         return string
 
     def _replace(self, string):
+        """
+        Replace a random character within a string a replace with a close by keyboard key
+        """
         index = np.random.randint(0, len(string))
         old = string[index]
         character = np.random.choice(self.letters)
@@ -137,41 +149,28 @@ class Analyser:
         return string
 
     def _add_character(self, string):
+        """
+        Add an aditional character to a random point within the string
+        """
         index = np.random.randint(0, len(string))
         character = np.random.choice(self.letters)
         return string[:index] + character + string[index:]
 
     @staticmethod
     def _remove(string):
+        """
+        Delete a random character from the string
+        """
         index = np.random.randint(0, len(string))
         return string[:index] + string[index+1:]
 
     def reset_data(self):
         self.all_data = self.backup
 
-    def _w2v_vec(self, text, epochs = 800, save=True):
-        w2v_model = w2v.Word2Vec(
-            sg = 0, seed = 123, workers=multiprocessing.cpu_count(), min_count=3, window=10, hs=0, sample=1e-3)
-        w2v_model.build_vocab(text)
-        print('Word2Vec Vocabulary Size: {}'.format(len(w2v_model.wv.vocab)))
-        w2v_model.train(text, epochs=epochs, total_examples=len(text))
-        w2v_vectors = w2v_model.wv
-        if save:
-            w2v_vectors.save('data/w2v_vectors.txt')
-        self.w2v_vecs = w2v_model.wv.syn0
-
-    def load_vectors(self, vector_dir='/data/w2v_vectors.txt'):
-        w2v_vectors = KeyedVectors.load_word2vec_format(vector_dir, binary=False)
-        self.w_vecs = w2v_vectors
-
-    def plot_w2v(self):
-        tsne = TSNE(n_components=2, random_state=0)
-        all_word_vectors_matrix_2d = tsne.fit_transform(self.w2v_vecs)
-
-    def get_w2v(self):
-        self.w_vecs = self._w2v_vec(self.all_data.lyrics)
-
     def get_summaries(self):
+        """
+        Print summary statistics
+        """
         lengths = self.all_data.lyrics.apply(len)
         print('Track Statistics:\nMax Length: {}\nShortest Length: {}\nMean Length: {}'.format(max(lengths),
                                                                                                 min(lengths),
