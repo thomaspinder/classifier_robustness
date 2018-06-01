@@ -98,7 +98,7 @@ class Lyrics:
         Pickle and store the results for use in analysis later in the pipeline.
         :return:
         """
-        with open('/Users/relativeinsight/Documents/models/song_lyrics_scraper/data/{}_lyrics.pickle'.format(self.meta_name), 'wb') as outfile:
+        with open('data/{}_lyrics.pickle'.format(self.meta_name), 'wb') as outfile:
             pickle.dump(self.lyrics, outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
 
